@@ -188,7 +188,7 @@ export default function Home() {
             className="inline-flex items-center justify-center rounded-lg text-base font-bold text-white disabled:pointer-events-none disabled:opacity-50 bg-[#6c8c9c] hover:bg-[#4092bf] h-10 px-5 transition-colors"
             disabled={loading || !input}
           >
-            {loading ? '전송 중...' : 'Send'}
+            {loading ? 'Sending..' : 'Send'}
           </button>
         </form>
       </div>
