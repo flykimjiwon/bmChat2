@@ -6,9 +6,9 @@ import MarkdownPreview from '@uiw/react-markdown-preview'
 const RECOMMENDED_QUESTIONS = [
   "공덕 대장아파트 실거래가 알려주세요.",
   "9억원짜리 아파트 대출 가능한지 계산해주세요.",
-  "성북역 롯데캐슬골드타운 아파트 실거래가격 알려주세요",
   "부동산 직거래 시 대출을 받을 때 임대인의 동의가 필요한가요?",
   "확정일자는 뭐에요?",
+  "왕십리 아파트 추천해주세요"
 ]
 
 export default function Home() {
@@ -128,14 +128,14 @@ export default function Home() {
           {msg.role === 'user' ? '질문자' : '부물AI'}
         </div>
         <div className={`
-          px-4 py-2 rounded-lg
+          px-4 py-2 rounded-lg font-medium
           ${msg.role === 'user'
-            ? 'bg-[#f4f6fa] text-[#222]'
-            : 'bg-[#f8fafc] text-[#222]'}
+            ? 'bg-[#f4f6fa] text-[#1a202c]'
+            : 'bg-[#f8fafc] text-[#1a202c]'}
           text-[15px] max-w-[330px] break-words
         `}>
           {msg.role === 'bot'
-            ? <MarkdownPreview source={msg.text} style={{ background: 'transparent', padding: 0, boxShadow: 'none' }} />
+            ? <MarkdownPreview source={msg.text} style={{ background: 'transparent', padding: 0, boxShadow: 'none', color: "#1a202c", fontWeight: 500 }} />
             : msg.text}
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function Home() {
         {/* 헤더 */}
         <div className="flex flex-col pb-6">
           <h2 className="font-bold text-xl text-[#171717] mb-1">부물AI 챗봇</h2>
-          <p className="text-base text-[#6c8c9c]">부동산 도우미 AI 챗봇입니다.</p>
+          <p className="text-base text-[#2d3748] font-medium">부동산 도우미 AI 챗봇입니다.</p>
         </div>
         {/* 메시지 영역 */}
         <div className="flex-1 overflow-y-auto pr-1 w-full">
@@ -164,7 +164,7 @@ export default function Home() {
               <ul className="space-y-1">
                 {recommended.map((q, idx) => (
                   <li key={idx}
-                      className="text-[#6c8c9c] cursor-pointer hover:underline text-sm"
+                      className="text-[#4a5568] cursor-pointer hover:underline text-sm font-medium"
                       onClick={() => handleRecommendedClick(q)}>
                     {"- "}{q}
                   </li>
@@ -177,7 +177,7 @@ export default function Home() {
         <form onSubmit={handleSend} className="flex items-center gap-2 pt-4 w-full">
           <input
             type="text"
-            className="flex-1 border border-[#d2d9e2] rounded-lg px-3 py-2 text-base placeholder-[#6c8c9c] focus:outline-none focus:ring-2 focus:ring-[#7fdcf4] disabled:cursor-not-allowed disabled:opacity-50 text-[#222]"
+            className="flex-1 border border-[#d2d9e2] rounded-lg px-3 py-2 text-base placeholder-[#6c8c9c] focus:outline-none focus:ring-2 focus:ring-[#7fdcf4] disabled:cursor-not-allowed disabled:opacity-50 text-[#1a202c] font-medium"
             placeholder="질문을 입력해주세요"
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -185,7 +185,7 @@ export default function Home() {
           />
           <button
             type="submit"
-            className="inline-flex items-center justify-center rounded-lg text-base font-medium text-white disabled:pointer-events-none disabled:opacity-50 bg-[#6c8c9c] hover:bg-[#4092bf] h-10 px-5 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg text-base font-bold text-white disabled:pointer-events-none disabled:opacity-50 bg-[#6c8c9c] hover:bg-[#4092bf] h-10 px-5 transition-colors"
             disabled={loading || !input}
           >
             {loading ? '전송 중...' : 'Send'}
