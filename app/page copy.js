@@ -1,14 +1,33 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
+import { TbMessageChatbot, TbUser } from "react-icons/tb"
+import MarkdownPreview from '@uiw/react-markdown-preview'
+
+const RECOMMENDED_QUESTIONS = [
+  "공덕 대장아파트 실거래가 알려주세요.",
+  "9억원짜리 아파트 대출 가능한지 계산해주세요.",
+  "부동산 직거래 시 대출을 받을 때 임대인의 동의가 필요한가요?",
+  "확정일자는 뭐에요?",
+  "왕십리 아파트 추천해주세요"
+]
 
 export default function Home() {
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState([
+    { role: 'bot', text: '부동산 도우미 AI 챗봇입니다.' }
+  ])
   const [loading, setLoading] = useState(false)
+  const [isFirstQuestion, setIsFirstQuestion] = useState(true)
+  const [recommended, setRecommended] = useState([])
   const eventSourceRef = useRef(null)
   const messagesEndRef = useRef(null)
 
-  // 컴포넌트 언마운트 시 SSE 연결 해제
+  useEffect(() => {
+    setRecommended(RECOMMENDED_QUESTIONS
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3))
+  }, [])
+
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
@@ -17,93 +36,201 @@ export default function Home() {
     }
   }, [])
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
   const handleSend = async (e) => {
     e.preventDefault()
     if (!input.trim() || loading) return
 
+    if (isFirstQuestion) setMessages([])
+
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', text: input }
+    ])
+    setInput('')
     setLoading(true)
-    setMessages(prev => [...prev, { role: 'user', text: input }])
+    setIsFirstQuestion(false)
 
     try {
+      setMessages(prev => [
+        ...prev,
+        { role: 'bot', text: '부물AI가 답변을 준비중입니다...' }
+      ])
+
       const eventSource = new EventSource(`/api/chat/stream?message=${encodeURIComponent(input)}`)
       eventSourceRef.current = eventSource
 
       let botMsg = ''
 
+      // 정상 메시지 처리
       eventSource.onmessage = (event) => {
-        if (event.data === '') return // done 이벤트 등 빈 데이터 무시
+        if (event.data === '') return
         botMsg += event.data
         setMessages(prev => {
-          const lastMsg = prev[prev.length - 1]
+          const filtered = prev.filter(m => m.text !== '부물AI가 답변을 준비중입니다...')
+          const lastMsg = filtered[filtered.length - 1]
           return lastMsg?.role === 'bot'
-            ? [...prev.slice(0, -1), { role: 'bot', text: botMsg }]
-            : [...prev, { role: 'bot', text: botMsg }]
+            ? [...filtered.slice(0, -1), { role: 'bot', text: botMsg }]
+            : [...filtered, { role: 'bot', text: botMsg }]
         })
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       }
+      
+      
 
-      // 서버에서 event: done을 보내면 정상 종료 처리
-      eventSource.addEventListener('done', () => {
-        console.log('[SSE] 서버에서 정상 종료 신호 수신')
+      // 커스텀 에러 이벤트 처리
+      eventSource.addEventListener('error', (event) => {
+        try {
+          const errorData = JSON.parse(event.data)
+          setMessages(prev => [
+            ...prev.filter(m => m.text !== '부물AI가 답변을 준비중입니다...'),
+            { 
+              role: 'bot', 
+              text: `⚠️ 오류 발생: ${errorData.message || '서버 처리 중 문제가 발생했습니다'}`
+            }
+          ])
+        } catch {
+          setMessages(prev => [
+            ...prev.filter(m => m.text !== '부물AI가 답변을 준비중입니다...'),
+            { role: 'bot', text: '⚠️ 알 수 없는 오류가 발생했습니다' }
+          ])
+        }
         eventSource.close()
         setLoading(false)
       })
 
-      // 네트워크 오류 등 비정상 종료만 처리
+      // 스트림 종료 처리
+      eventSource.addEventListener('done', () => {
+        eventSource.close()
+        setLoading(false)
+      })
+
+      // 네트워크 레벨 에러 처리
       eventSource.onerror = (e) => {
-        // readyState가 CLOSED(2)이면 정상 종료이므로 무시
         if (eventSource.readyState === EventSource.CLOSED) {
           setLoading(false)
           return
         }
-        console.error('[SSE] 연결 비정상 종료', e)
         eventSource.close()
-        setMessages(prev => [...prev, { role: 'bot', text: '🚨 연결이 비정상적으로 종료되었습니다' }])
+        setMessages(prev => [
+          ...prev.filter(m => m.text !== '부물AI가 답변을 준비중입니다...'),
+          { role: 'bot', text: '⚠️ 네트워크 연결이 불안정합니다. 다시 시도해 주세요' }
+        ])
         setLoading(false)
       }
-
     } catch (err) {
-      console.error('SSE 연결 실패:', err)
-      setMessages(prev => [...prev, { role: 'bot', text: `오류: ${err.message}` }])
+      setMessages(prev => [
+        ...prev.filter(m => m.text !== '부물AI가 답변을 준비중입니다...'),
+        { role: 'bot', text: `⚠️ 시스템 오류: ${err.message}` }
+      ])
       setLoading(false)
     }
   }
 
+  const handleRecommendedClick = (q) => {
+    setInput(q)
+  }
+
+  // 메시지 버블
+  const MessageBubble = ({ msg }) => (
+    <div className="flex items-start gap-3 mb-6">
+      <div className="flex-shrink-0">
+        {msg.role === 'user' ? (
+          <div className="w-10 h-10 rounded-full bg-white border border-[#d2d9e2] flex items-center justify-center">
+            <TbUser size={28} color="#6c8c9c" />
+          </div>
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-white border border-[#7fdcf4] flex items-center justify-center">
+            <TbMessageChatbot size={26} color="#4092bf" />
+          </div>
+        )}
+      </div>
+      <div>
+        <div className={`font-semibold text-[15px] mb-1 ${msg.role === 'user' ? 'text-[#171717]' : 'text-[#4092bf]'}`}>
+          {msg.role === 'user' ? '질문자' : '부물AI'}
+        </div>
+        <div className={`
+          px-4 py-2 rounded-lg font-medium
+          ${msg.role === 'user'
+            ? 'bg-[#f4f6fa] text-[#1a202c]'
+            : 'bg-[#f8fafc] text-[#1a202c]'}
+          ${msg.text.startsWith('⚠️') ? 'text-red-600' : ''}
+          text-[15px] max-w-[330px] break-words
+        `}>
+          {msg.role === 'bot' ? (
+            msg.text.startsWith('⚠️') ? (
+              msg.text
+            ) : (
+              <MarkdownPreview 
+                source={msg.text} 
+                style={{ 
+                  background: 'transparent', 
+                  padding: 0, 
+                  boxShadow: 'none', 
+                  color: "#1a202c", 
+                  fontWeight: 500 
+                }} 
+              />
+            )
+          ) : msg.text}
+        </div>
+      </div>
+    </div>
+  )
+
+  // 나머지 UI 부분은 동일하게 유지
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center px-2 py-4">
-      <div className="w-full max-w-md flex flex-col flex-1 bg-white rounded-xl shadow-lg p-4">
-        <div className="flex-1 overflow-y-auto space-y-3 mb-2" style={{ minHeight: 300 }}>
+    <div className="flex justify-center items-center min-h-screen bg-[#f4f6fa]">
+      <div className="bg-white p-7 m-3 rounded-2xl border border-[#e5e7eb] w-full max-w-[440px] min-h-[600px] flex flex-col shadow-none">
+        {/* 헤더 */}
+        <div className="flex flex-col pb-6">
+          <h2 className="font-bold text-xl text-[#171717] mb-1">부물AI 챗봇</h2>
+          <p className="text-base text-[#2d3748] font-medium">부동산 도우미 AI 챗봇입니다.</p>
+        </div>
+        {/* 메시지 영역 */}
+        <div className="flex-1 overflow-y-auto pr-1 w-full">
           {messages.map((msg, i) => (
-            <div key={i} className={`whitespace-pre-line ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-              <span className={`inline-block px-3 py-2 rounded-lg ${
-                msg.role === 'user'
-                  ? 'bg-blue-100 text-blue-900'
-                  : 'bg-gray-200 text-gray-800'
-              }`}>
-                {msg.text}
-              </span>
-            </div>
+            <MessageBubble key={i} msg={msg} />
           ))}
           <div ref={messagesEndRef} />
         </div>
-        <form onSubmit={handleSend} className="flex gap-2">
+        {/* 추천 질문 */}
+        {isFirstQuestion && (
+          <div className="my-2">
+            <div className="bg-[#f8fafc] rounded-lg py-2 px-3 border border-[#e5e7eb]">
+              <ul className="space-y-1">
+                {recommended.map((q, idx) => (
+                  <li key={idx}
+                      className="text-[#4a5568] cursor-pointer hover:underline text-sm font-medium"
+                      onClick={() => handleRecommendedClick(q)}>
+                    {"- "}{q}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+        {/* 입력창 */}
+        <form onSubmit={handleSend} className="flex items-center gap-2 pt-4 w-full">
           <input
             type="text"
-            className="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="메시지 입력..."
+            className="flex-1 border border-[#d2d9e2] rounded-lg px-3 py-2 text-base placeholder-[#6c8c9c] focus:outline-none focus:ring-2 focus:ring-[#7fdcf4] disabled:cursor-not-allowed disabled:opacity-50 text-[#1a202c] font-medium"
+            placeholder="질문을 입력해주세요"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={e => setInput(e.target.value)}
             disabled={loading}
           />
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-            disabled={loading}
+            className="inline-flex items-center justify-center rounded-lg text-base font-bold text-white disabled:pointer-events-none disabled:opacity-50 bg-[#6c8c9c] hover:bg-[#4092bf] h-10 px-5 transition-colors"
+            disabled={loading || !input}
           >
-            {loading ? '전송 중...' : '전송'}
+            {loading ? 'Sending..' : 'Send'}
           </button>
         </form>
       </div>
-    </main>
+    </div>
   )
 }
