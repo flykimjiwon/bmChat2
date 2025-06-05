@@ -15,3 +15,13 @@
     animation: spin 0.8s linear infinite;
   }
   
+
+  .markdown-body ol {
+    list-style: decimal;
+    padding-left: 2rem; /* 번호와 텍스트 간격 조정 */
+  }
+  
+  .markdown-body ul {
+    list-style: disc;
+    padding-left: 2rem;
+  }

@@ -1429,7 +1429,7 @@ rehype-slug@~6.0.0:
     hast-util-to-string "^3.0.0"
     unist-util-visit "^5.0.0"
 
-remark-gfm@~4.0.0:
+remark-gfm@^4.0.1, remark-gfm@~4.0.0:
   version "4.0.1"
   resolved "https://registry.npmjs.org/remark-gfm/-/remark-gfm-4.0.1.tgz"
   integrity sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==

@@ -2,8 +2,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { TbMessageChatbot, TbUser } from "react-icons/tb"
 import MarkdownPreview from '@uiw/react-markdown-preview'
+import remarkGfm from 'remark-gfm'
 
-// 스피너용 CSS를 전역에 추가 (Next.js 환경에서는 globals.css에 넣는 것이 정석)
+// 스피너 및 마크다운 목록 스타일 전역 적용
 const spinnerStyle = `
 @keyframes spin {
   0% { transform: rotate(0deg); }
@@ -19,6 +20,23 @@ const spinnerStyle = `
   animation: spin 0.8s linear infinite;
   margin-right: 8px;
   vertical-align: middle;
+}
+.markdown-body ol {
+  list-style: decimal !important;
+  padding-left: 2rem !important;
+  margin: 1rem 0 !important;
+}
+.markdown-body ul {
+  list-style: disc !important;
+  padding-left: 2rem !important;
+  margin: 1rem 0 !important;
+}
+.markdown-body li {
+  margin: 0.5rem 0 !important;
+}
+.markdown-body p {
+  margin: 0.8rem 0 !important;
+  line-height: 1.7 !important;
 }
 `
 if (typeof window !== 'undefined' && !document.getElementById('ai-spinner-style')) {
@@ -61,11 +79,9 @@ export default function Home() {
 
   useEffect(() => {
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-      }
+      if (eventSourceRef.current) eventSourceRef.current.close()
       if (loadingInterval.current) clearInterval(loadingInterval.current)
-      if (loadingTextInterval.current) clearInterval(loadingTextInterval.current)
+      if (loadingTextInterval.current) clearTimeout(loadingTextInterval.current)
     }
   }, [])
 
@@ -73,29 +89,24 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-// 로딩 애니메이션 효과
-useEffect(() => {
-  if (loading) {
-    setLoadingText('답변 준비중')
-    setDots('.')
-    if (loadingInterval.current) clearInterval(loadingInterval.current)
-    if (loadingTextInterval.current) clearTimeout(loadingTextInterval.current)
-
-    loadingInterval.current = setInterval(() => {
-      setDots(prev => prev.length >= 3 ? '.' : prev + '.')
-    }, 500)
-
-    // 0.5초 뒤 한 번만 "활용될 툴을 찾고 있습니다"로 변경
-    loadingTextInterval.current = setTimeout(() => {
-      setLoadingText('활용될 툴을 찾고 있습니다')
-    }, 500)
-  } else {
-    setDots('.')
-    setLoadingText('답변 준비중')
-    if (loadingInterval.current) clearInterval(loadingInterval.current)
-    if (loadingTextInterval.current) clearTimeout(loadingTextInterval.current)
-  }
-}, [loading])
+  // 로딩 애니메이션 효과
+  useEffect(() => {
+    if (loading) {
+      setLoadingText('답변 준비중')
+      setDots('.')
+      loadingInterval.current = setInterval(() => {
+        setDots(prev => prev.length >= 3 ? '.' : prev + '.')
+      }, 500)
+      loadingTextInterval.current = setTimeout(() => {
+        setLoadingText('활용될 툴을 찾고 있습니다')
+      }, 500)
+    } else {
+      setDots('.')
+      setLoadingText('답변 준비중')
+      clearInterval(loadingInterval.current)
+      clearTimeout(loadingTextInterval.current)
+    }
+  }, [loading])
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -119,19 +130,43 @@ useEffect(() => {
     try {
       const eventSource = new EventSource(`/api/chat/stream?message=${encodeURIComponent(input)}`)
       eventSourceRef.current = eventSource
-
-      let botMsg = ''
-
+    
+      // 버퍼 관리 변수 추가
+      let botMsgArr = []
+      let pendingNumberLine = null // 번호만 있는 줄 임시 저장
+    
       eventSource.onmessage = (event) => {
         if (!event.data) return
-        botMsg += event.data
+        const data = event.data.replace(/\r/g, '') // 캐리지 리턴 제거
+        
+    
+        // 1. 번호만 있는 줄(예: "2. ")이면 임시 저장
+        if (/^\d+\.\s*$/.test(data.trim())) {
+          pendingNumberLine = data.trim()
+          return
+        }
+    
+        // 2. 임시 번호 줄 + 본문 조합
+        if (pendingNumberLine && data.trim()) {
+          botMsgArr.push(`${pendingNumberLine} ${data.trimStart()}`)
+          pendingNumberLine = null
+        } 
+        // 3. 일반 청크 처리
+        else {
+          botMsgArr.push(data)
+        }
+    
+        // 4. 누적 메시지 가공
+        const processedMsg = botMsgArr.join('')
+          .replace(/(\d+)\.\s*\n/g, '$1. ') // 번호 다음 줄바꿈 제거
+          .replace(/\n{2,}/g, '\n\n') // 중복 개행 정리
+    
         setMessages(prev => {
-          // "준비중입니다" 메시지는 제거
           const filtered = prev.filter(m => m.text !== '부물AI가 답변을 준비중입니다...')
           const lastMsg = filtered[filtered.length - 1]
           return lastMsg?.role === 'bot'
-            ? [...filtered.slice(0, -1), { role: 'bot', text: botMsg }]
-            : [...filtered, { role: 'bot', text: botMsg }]
+            ? [...filtered.slice(0, -1), { role: 'bot', text: processedMsg }]
+            : [...filtered, { role: 'bot', text: processedMsg }]
         })
       }
 
@@ -184,9 +219,7 @@ useEffect(() => {
     }
   }
 
-  const handleRecommendedClick = (q) => {
-    setInput(q)
-  }
+  const handleRecommendedClick = (q) => setInput(q)
 
   // 메시지 버블
   const MessageBubble = ({ msg }) => (
@@ -202,38 +235,38 @@ useEffect(() => {
           </div>
         )}
       </div>
-      <div>
+      <div className="flex-1">
         <div className={`font-semibold text-[15px] mb-1 ${msg.role === 'user' ? 'text-[#171717]' : 'text-[#4092bf]'}`}>
           {msg.role === 'user' ? '질문자' : '부물AI'}
         </div>
         <div className={`
           px-4 py-2 rounded-lg font-medium
-          ${msg.role === 'user'
-            ? 'bg-[#f4f6fa] text-[#1a202c]'
-            : 'bg-[#f8fafc] text-[#1a202c]'}
+          ${msg.role === 'user' ? 'bg-[#f4f6fa]' : 'bg-[#f8fafc]'}
           ${msg.text.startsWith('⚠️') ? 'text-red-600' : ''}
           text-[15px] max-w-[330px] break-words
         `}>
           {msg.role === 'bot' ? (
-            msg.text.startsWith('⚠️') ? (
-              msg.text
-            ) : msg.text === '부물AI가 답변을 준비중입니다...' ? (
-              <div className="flex items-center gap-2">
-                <span className="spinner" />
-                <span>{loadingText}{dots}</span>
-              </div>
-            ) : (
-              <MarkdownPreview 
-                source={msg.text} 
-                style={{ 
-                  background: 'transparent', 
-                  padding: 0, 
-                  boxShadow: 'none', 
-                  color: "#1a202c", 
-                  fontWeight: 500,
-                  whiteSpace: 'pre-wrap'
-                }} 
-              />
+            msg.text.startsWith('⚠️') ? msg.text : (
+              msg.text === '부물AI가 답변을 준비중입니다...' ? (
+                <div className="flex items-center gap-2">
+                  <span className="spinner" />
+                  <span>{loadingText}{dots}</span>
+                </div>
+              ) : (
+                <MarkdownPreview
+                  className="markdown-body"
+                  source={msg.text}
+                  remarkPlugins={[remarkGfm]}
+                  style={{
+                    background: 'transparent',
+                    padding: 0,
+                    color: "#1a202c",
+                    fontWeight: 500,
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.6
+                  }}
+                />
+              )
             )
           ) : msg.text}
         </div>

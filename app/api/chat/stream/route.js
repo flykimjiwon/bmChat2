@@ -39,38 +39,63 @@ export async function GET(request) {
         const encoder = new TextEncoder();
 
         // 자연어 경계 판단 함수 (개선 버전)
+        // const findBoundary = (str) => {
+        //   const boundaries = ['\n', '.', ' ', '!', '?', ',', ';', ':', '1.', '2.', '3.', '4.', '5.'];
+
+        //   // 숫자 항목 시작점 우선 탐색
+        //   const listPattern = /\n\d+\. /g;
+        //   const listMatch = [...str.matchAll(listPattern)].pop();
+        //   if (listMatch) return listMatch.index + listMatch[0].length;
+
+        //   // 일반 경계 문자 탐색
+        //   for (let i = str.length - 1; i >= 0; i--) {
+        //     if (boundaries.some(b => str.startsWith(b, i))) return i + 1;
+        //   }
+        //   return -1;
+        // };
+        // route.js 내 findBoundary 함수 수정
         const findBoundary = (str) => {
-          const boundaries = ['\n', '.', ' ', '!', '?', ',', ';', ':', '1.', '2.', '3.', '4.', '5.'];
+            // 개선된 번호 목록 탐지 (예: "1. ", "2. ")
+            const listPattern = /(\n|^)\d+\.\s/g;
+            const listMatch = [...str.matchAll(listPattern)].pop();
+            if (listMatch) {
+              return listMatch.index + listMatch[0].length;
+            }
+          
+            // 기존 경계 탐지 로직
+            for (let i = str.length - 1; i >= 0; i--) {
+              if (['\n', '.', '!', '?', ';'].includes(str[i])) {
+                return i + 1;
+              }
+            }
+            return -1;
+          };
+          
+  
 
-          // 숫자 항목 시작점 우선 탐색
-          const listPattern = /\n\d+\. /g;
-          const listMatch = [...str.matchAll(listPattern)].pop();
-          if (listMatch) return listMatch.index + listMatch[0].length;
-
-          // 일반 경계 문자 탐색
-          for (let i = str.length - 1; i >= 0; i--) {
-            if (boundaries.some(b => str.startsWith(b, i))) return i + 1;
-          }
-          return -1;
-        };
-
-        const flushBuffer = () => {
-          if (buffer.length === 0) return;
-
-          const boundaryIndex = findBoundary(buffer);
-          const sendText = boundaryIndex > 0 
-            ? buffer.substring(0, boundaryIndex)
-            : buffer;
-
-          if (sendText) {
-            chunkCount++;
-            console.log(`[SSE][${requestId}] 전달 청크 #${chunkCount}:`, sendText);
-            controller.enqueue(encoder.encode(`data: ${sendText}\n\n`));
-            buffer = buffer.substring(sendText.length);
-          }
-
-          flushTimer = null;
-        };
+  const flushBuffer = () => {
+    if (buffer.length === 0) return;
+  
+    const boundaryIndex = findBoundary(buffer);
+    let sendText = boundaryIndex > 0 
+      ? buffer.substring(0, boundaryIndex)
+      : buffer;
+  
+    // === 여기서 번호 목록 앞 개행/공백 제거 ===
+    // 예: "\n3. " 또는 "   3. " → "3. "
+    sendText = sendText.replace(/^[\s\r\n]*(\d+\.\s)/, '$1');
+    
+  
+    if (sendText) {
+      chunkCount++;
+      console.log(`[SSE][${requestId}] 전달 청크 #${chunkCount}:`, sendText);
+      controller.enqueue(encoder.encode(`data: ${sendText}\n\n`));
+      buffer = buffer.substring(sendText.length);
+    }
+  
+    flushTimer = null;
+  };
+  
 
         try {
           while (true) {
