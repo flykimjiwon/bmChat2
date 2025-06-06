@@ -38,66 +38,64 @@ export async function GET(request) {
         const reader = fetchResponse.body.getReader();
         const encoder = new TextEncoder();
 
-        // 1. 개선된 경계 탐색 로직
+        // 자연어 경계 판단 함수 (개선 버전)
+        // const findBoundary = (str) => {
+        //   const boundaries = ['\n', '.', ' ', '!', '?', ',', ';', ':', '1.', '2.', '3.', '4.', '5.'];
+
+        //   // 숫자 항목 시작점 우선 탐색
+        //   const listPattern = /\n\d+\. /g;
+        //   const listMatch = [...str.matchAll(listPattern)].pop();
+        //   if (listMatch) return listMatch.index + listMatch[0].length;
+
+        //   // 일반 경계 문자 탐색
+        //   for (let i = str.length - 1; i >= 0; i--) {
+        //     if (boundaries.some(b => str.startsWith(b, i))) return i + 1;
+        //   }
+        //   return -1;
+        // };
+        // route.js 내 findBoundary 함수 수정
         const findBoundary = (str) => {
-          const boundaries = ['\n', '. ', '! ', '? ', ', ', '; ', ' ', '1. ', '2. ', '3. ', '4. ', '5. '];
-          let bestIndex = -1;
-
-          // 우선 순위 1: 리스트 항목 시작점
-          for (const pattern of ['\n1. ', '\n2. ', '\n3. ', '\n4. ', '\n5. ']) {
-            const index = str.lastIndexOf(pattern);
-            if (index !== -1) {
-              bestIndex = index + pattern.length;
-              break;
+            // 개선된 번호 목록 탐지 (예: "1. ", "2. ")
+            const listPattern = /(\n|^)\d+\.\s/g;
+            const listMatch = [...str.matchAll(listPattern)].pop();
+            if (listMatch) {
+              return listMatch.index + listMatch[0].length;
             }
-          }
-          if (bestIndex !== -1) return bestIndex;
-
-          // 우선 순위 2: 일반 문장 경계
-          for (let i = str.length - 1; i >= 0; i--) {
-            if (boundaries.some(b => str.startsWith(b, i))) {
-              bestIndex = i + 1;
-              break;
+          
+            // 기존 경계 탐지 로직
+            for (let i = str.length - 1; i >= 0; i--) {
+              if (['\n', '.', '!', '?', ';'].includes(str[i])) {
+                return i + 1;
+              }
             }
-          }
+            return -1;
+          };
+          
+  
 
-          // 우선 순위 3: 3바이트 이하 한글 분할 방지
-          if (bestIndex === -1 && str.length > 3) {
-            const lastChar = str.slice(-3);
-            if (Buffer.byteLength(lastChar) === 3) { // 한글 완성형 확인
-              bestIndex = str.length - 3;
-            }
-          }
-
-          return bestIndex;
-        };
-
-        // 2. 버퍼 플러시 로직
-        const flushBuffer = () => {
-          if (buffer.length === 0) return;
-
-          let boundaryIndex = findBoundary(buffer);
-          let sendText = '';
-
-          if (boundaryIndex > 0) {
-            sendText = buffer.substring(0, boundaryIndex);
-            buffer = buffer.substring(boundaryIndex);
-          } else if (buffer.length >= 60) { // 버퍼 최대 길이 60자로 제한
-            sendText = buffer.substring(0, 60);
-            buffer = buffer.substring(60);
-          }
-
-          if (sendText) {
-            // 3. 리스트 항목 강제 개행 처리
-            sendText = sendText.replace(/(\d+\. )/g, '\n$1');
-            
-            chunkCount++;
-            console.log(`[SSE][${requestId}] 전달 청크 #${chunkCount}:`, sendText);
-            controller.enqueue(encoder.encode(`data: ${sendText}\n\n`));
-          }
-
-          flushTimer = null;
-        };
+  const flushBuffer = () => {
+    if (buffer.length === 0) return;
+  
+    const boundaryIndex = findBoundary(buffer);
+    let sendText = boundaryIndex > 0 
+      ? buffer.substring(0, boundaryIndex)
+      : buffer;
+  
+    // === 여기서 번호 목록 앞 개행/공백 제거 ===
+    // 예: "\n3. " 또는 "   3. " → "3. "
+    sendText = sendText.replace(/^[\s\r\n]*(\d+\.\s)/, '$1');
+    
+  
+    if (sendText) {
+      chunkCount++;
+      console.log(`[SSE][${requestId}] 전달 청크 #${chunkCount}:`, sendText);
+      controller.enqueue(encoder.encode(`data: ${sendText}\n\n`));
+      buffer = buffer.substring(sendText.length);
+    }
+  
+    flushTimer = null;
+  };
+  
 
         try {
           while (true) {
@@ -106,23 +104,21 @@ export async function GET(request) {
 
             buffer += new TextDecoder().decode(value, { stream: true });
 
-            // 4. 플러시 조건: 버퍼가 20자 이상이거나 경계 존재
-            if (buffer.length >= 20 && findBoundary(buffer) !== -1) {
+            // 즉시 전송 조건 강화 (40자 이상 or 경계 존재)
+            if (buffer.length >= 40 || findBoundary(buffer) !== -1) {
               flushBuffer();
             }
 
-            // 5. 타임아웃 조정 (80ms)
+            // 타임아웃 처리 (100ms)
             if (!flushTimer) {
               flushTimer = setTimeout(() => {
                 if (buffer.length > 0) flushBuffer();
-              }, 80);
+              }, 100);
             }
           }
 
           // 잔여 데이터 처리
-          while (buffer.length > 0) {
-            flushBuffer();
-          }
+          flushBuffer();
           controller.enqueue(encoder.encode('event: done\ndata: \n\n'));
         } catch (error) {
           console.error(`[SSE][${requestId}] 스트림 처리 중 에러:`, error);

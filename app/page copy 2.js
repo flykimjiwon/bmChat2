@@ -63,10 +63,6 @@ export default function Home() {
   const eventSourceRef = useRef(null)
   const messagesEndRef = useRef(null)
 
-  // 기존 ref에 추가
-const streamInterval = useRef(null);
-
-
   // 로딩 인터랙티브 상태
   const [loadingText, setLoadingText] = useState('답변 준비중')
   const [dots, setDots] = useState('.')
@@ -92,81 +88,23 @@ const streamInterval = useRef(null);
   }, [messages])
 
   // 로딩 애니메이션 효과
-  // useEffect(() => {
-  //   if (loading) {
-  //     setLoadingText('답변 준비중')
-  //     setDots('.')
-  //     loadingInterval.current = setInterval(() => {
-  //       setDots(prev => prev.length >= 3 ? '.' : prev + '.')
-  //     }, 500)
-  //     loadingTextInterval.current = setTimeout(() => {
-  //       setLoadingText('활용될 툴을 찾고 있습니다')
-  //     }, 500)
-  //   } else {
-  //     setDots('.')
-  //     setLoadingText('답변 준비중')
-  //     clearInterval(loadingInterval.current)
-  //     clearTimeout(loadingTextInterval.current)
-  //   }
-  // }, [loading])
-  // 로딩 애니메이션 및 페이크 스트리밍 효과
-useEffect(() => {
-  if (loading) {
-    const PLANNING_STEPS = [
-      "활용될 툴을 찾고 있습니다.",
-      "네, 말씀해주신 내용을 바탕으로 기능을 우선 검색하겠습니다.",
-      "해당 되는 답변은 다음과 같습니다."
-    ];
-
-    let currentStep = 0;
-    let currentWordIndex = 0;
-    let fullText = '';
-
-    // 단어 단위 스트리밍 처리
-    const streamText = () => {
-      const stepText = PLANNING_STEPS[currentStep];
-      const words = stepText.split(' ');
-      
-      if (currentWordIndex < words.length) {
-        fullText += (currentWordIndex === 0 ? '' : ' ') + words[currentWordIndex];
-        setLoadingText(fullText);
-        currentWordIndex++;
-      } else {
-        clearInterval(streamInterval.current);
-        currentStep++;
-        currentWordIndex = 0;
-        fullText = '';
-        
-        if (currentStep < PLANNING_STEPS.length) {
-          streamInterval.current = setInterval(streamText, 300);
-        } else {
-          // 페이크 스트리밍 완료 후 실제 스트리밍 시작
-          setTimeout(() => setLoading(false), 300);
-        }
-      }
-    };
-
-    // 초기 설정
-    setLoadingText('답변 준비중');
-    loadingInterval.current = setInterval(() => {
-      setDots(prev => prev.length >= 3 ? '.' : prev + '.');
-    }, 500);
-
-    // 0.5초 후 첫 번째 페이크 스트리밍 시작
-    loadingTextInterval.current = setTimeout(() => {
-      streamInterval.current = setInterval(streamText, 80);
-    }, 500);
-
-  } else {
-    // 클린업 로직
-    setDots('.');
-    // setLoadingText('답변 준비중');
-    clearInterval(loadingInterval.current);
-    clearTimeout(loadingTextInterval.current);
-    clearInterval(streamInterval.current);
-  }
-}, [loading]);
-
+  useEffect(() => {
+    if (loading) {
+      setLoadingText('답변 준비중')
+      setDots('.')
+      loadingInterval.current = setInterval(() => {
+        setDots(prev => prev.length >= 3 ? '.' : prev + '.')
+      }, 500)
+      loadingTextInterval.current = setTimeout(() => {
+        setLoadingText('활용될 툴을 찾고 있습니다')
+      }, 500)
+    } else {
+      setDots('.')
+      setLoadingText('답변 준비중')
+      clearInterval(loadingInterval.current)
+      clearTimeout(loadingTextInterval.current)
+    }
+  }, [loading])
 
   const handleSend = async (e) => {
     e.preventDefault()
