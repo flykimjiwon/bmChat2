@@ -47,7 +47,7 @@ if (typeof window !== 'undefined' && !document.getElementById('ai-spinner-style'
 }
 
 const RECOMMENDED_QUESTIONS = [
-  "공덕 대장아파트 실거래가 알려주세요.",
+  "주택담보 대출이랑 신용 대출 같이 받을 수 있어요?",
   "확정일자는 뭐에요?",
   "전세 대출이랑 신용 대출 같이 받을 수 있어요?"
 ]
