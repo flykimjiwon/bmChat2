@@ -145,9 +145,7 @@ export default function Home() {
                             : lastMsg.text;
                         
                         let newText = currentText + parsedData.token;
-
-                        // [수정] 문장 끝과 숫자 목록 사이에 줄바꿈을 추가하여 마크다운 오류 수정
-                        // 예: "...다.2. XXX" -> "...다.\n2. XXX"
+                        
                         newText = newText.replace(/([.!?다])(\s*)(\d+\.)/g, '$1\n$3');
                         
                         updatedMessages[updatedMessages.length - 1] = { ...lastMsg, text: newText };
@@ -231,23 +229,22 @@ export default function Home() {
         <div className={`px-4 py-2 rounded-lg font-medium text-[15px] ${msg.role === 'user' ? 'bg-[#f4f6fa]' : 'bg-[#f8fafc] border border-gray-200'}`}>
           {msg.role === 'bot' ? (
             msg.text === 'thinking' ? (
-                // --- 로딩 애니메이션 UI 업데이트 ---
                 <div className="flex items-center gap-2 text-gray-500">
                   <span className="spinner" />
                   <span>{loadingText}{dots}</span>
                 </div>
-                // -----------------------------
             ) : msg.text.startsWith('⚠️') ? (
                 <span className="text-red-600">{msg.text}</span>
             ) : (
-              // [수정] AI 답변 글씨 색상을 질문자와 동일하게 text-[#1a202c]로 변경
-              <div className="markdown-body text-[#1a202c]">
+              // [수정] data-color-mode와 인라인 스타일로 텍스트 색상을 강제 적용합니다.
+              <div className="markdown-body" data-color-mode="light">
                 <MarkdownPreview
                   source={msg.text}
                   remarkPlugins={[remarkGfm]}
                   style={{
                     background: 'transparent',
                     padding: '0',
+                    color: '#1a202c' // 질문자 텍스트와 동일한 색상 강제 적용
                   }}
                 />
               </div>
