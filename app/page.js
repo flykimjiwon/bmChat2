@@ -36,7 +36,7 @@ export default function Home() {
   useEffect(() => {
     setRecommended(RECOMMENDED_QUESTIONS
       .sort(() => Math.random() - 0.5)
-      .slice(0, 3))
+      .slice(0, 3)) // 추천 질문 중 3개만 랜덤으로 보여줍니다.
   }, [])
 
   // --- 로딩 애니메이션 및 페이크 스트리밍 효과 ---
@@ -240,7 +240,8 @@ export default function Home() {
             ) : msg.text.startsWith('⚠️') ? (
                 <span className="text-red-600">{msg.text}</span>
             ) : (
-              <div className="markdown-body">
+              // [수정] text-gray-800 클래스를 추가하여 텍스트 색상을 명시적으로 지정
+              <div className="markdown-body text-gray-800">
                 <MarkdownPreview
                   source={msg.text}
                   remarkPlugins={[remarkGfm]}
