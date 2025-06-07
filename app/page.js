@@ -240,8 +240,8 @@ export default function Home() {
             ) : msg.text.startsWith('⚠️') ? (
                 <span className="text-red-600">{msg.text}</span>
             ) : (
-              // [수정] text-gray-800 클래스를 추가하여 텍스트 색상을 명시적으로 지정
-              <div className="markdown-body text-gray-800">
+              // [수정] AI 답변 글씨 색상을 질문자와 동일하게 text-[#1a202c]로 변경
+              <div className="markdown-body text-[#1a202c]">
                 <MarkdownPreview
                   source={msg.text}
                   remarkPlugins={[remarkGfm]}
