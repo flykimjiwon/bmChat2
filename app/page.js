@@ -17,7 +17,7 @@ const RECOMMENDED_QUESTIONS = [
 export default function Home() {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
-    { role: 'bot', text: '부동산 도우미 AI 챗봇입니다.' }
+    { role: 'bot', text: '부동산 도우미 AI 빵봇입니다.' }
   ])
   const [loading, setLoading] = useState(false)
   const [isFirstQuestion, setIsFirstQuestion] = useState(true)
@@ -224,7 +224,7 @@ export default function Home() {
       </div>
       <div className="flex-1 min-w-0">
         <div className={`font-semibold text-[15px] mb-1 ${msg.role === 'user' ? 'text-[#171717]' : 'text-[#4092bf]'}`}>
-          {msg.role === 'user' ? '질문자' : '부물AI'}
+          {msg.role === 'user' ? '질문자' : '빵봇AI'}
         </div>
         <div className={`px-4 py-2 rounded-lg font-medium text-[15px] ${msg.role === 'user' ? 'bg-[#f4f6fa]' : 'bg-[#f8fafc] border border-gray-200'}`}>
           {msg.role === 'bot' ? (
@@ -261,8 +261,8 @@ export default function Home() {
     <div className="flex justify-center items-center min-h-screen bg-[#f4f6fa]">
       <div className="bg-white p-7 m-3 rounded-2xl border border-[#e5e7eb] w-full max-w-[440px] min-h-[600px] flex flex-col shadow-sm">
         <div className="flex flex-col pb-6">
-          <h2 className="font-bold text-xl text-[#171717] mb-1">부물AI 챗봇</h2>
-          <p className="text-base text-[#2d3748] font-medium">부동산 도우미 AI 챗봇입니다.</p>
+          <h2 className="font-bold text-xl text-[#171717] mb-1">부동산AI 챗봇</h2>
+          <p className="text-base text-[#2d3748] font-medium">부동산 도우미 AI 빵봇입니다.</p>
         </div>
         
         <div className="flex-1 overflow-y-auto pr-1 w-full">
