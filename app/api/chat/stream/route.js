@@ -36,7 +36,7 @@ export async function GET(request) {
         const encoder = new TextEncoder();
         let buffer = '';
         let chunkCount = 0;
-        const MIN_CHUNK_SIZE = 5; // 최소 전송 단위
+        const MIN_CHUNK_SIZE = 10; // 최소 전송 단위
 
         function enqueueJson(data) {
           const jsonString = JSON.stringify(data);
