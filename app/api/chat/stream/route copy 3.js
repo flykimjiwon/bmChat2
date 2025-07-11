@@ -38,11 +38,6 @@ export async function GET(request) {
         let chunkCount = 0;
         const MIN_CHUNK_SIZE = 10; // 최소 전송 단위
 
-        // '총 N개' 패턴을 감지하는 정규식
-        // \s는 공백 문자를 의미하며, \d+는 하나 이상의 숫자를 의미합니다.
-        // (?<!\n)는 부정적인 후방 탐색으로, 바로 앞에 줄바꿈 문자가 없는 경우에만 일치합니다.
-        const totalCountRegex = /(?<!\n)총\s\d+개/; 
-
         function enqueueJson(data) {
           const jsonString = JSON.stringify(data);
           controller.enqueue(encoder.encode(`data: ${jsonString}\n\n`));
@@ -60,14 +55,8 @@ export async function GET(request) {
             let newlineIndex;
             // 우선순위 1: 줄바꿈이 있으면 라인 단위로 전송
             while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-              let line = buffer.slice(0, newlineIndex + 1);
+              const line = buffer.slice(0, newlineIndex + 1);
               buffer = buffer.slice(newlineIndex + 1);
-              
-              // '총 N개' 패턴이 포함된 줄을 찾아서 앞에 줄바꿈 추가
-              if (totalCountRegex.test(line) && chunkCount > 0) {
-                line = '\n' + line; // 줄바꿈 추가
-              }
-
               if (line.trim()) {
                 enqueueJson({ token: line });
               }
@@ -75,10 +64,6 @@ export async function GET(request) {
             
             // 우선순위 2: 줄바꿈이 없더라도, 버퍼에 쌓인 데이터가 최소 길이를 넘으면 전송
             if (buffer.length >= MIN_CHUNK_SIZE) {
-               // '총 N개' 패턴이 포함된 경우 앞에 줄바꿈 추가
-              if (totalCountRegex.test(buffer) && chunkCount > 0) {
-                buffer = '\n' + buffer; // 줄바꿈 추가
-              }
               enqueueJson({ token: buffer });
               buffer = ''; // 버퍼 비우기
             }
@@ -86,10 +71,6 @@ export async function GET(request) {
 
           // 스트림 종료 후 버퍼에 남은 데이터가 있으면 모두 전송
           if (buffer.length > 0) {
-            // 스트림 마지막에 '총 N개' 패턴이 남아있을 경우 줄바꿈 추가
-            if (totalCountRegex.test(buffer) && chunkCount > 0) {
-                buffer = '\n' + buffer; // 줄바꿈 추가
-            }
             enqueueJson({ token: buffer });
           }
           
